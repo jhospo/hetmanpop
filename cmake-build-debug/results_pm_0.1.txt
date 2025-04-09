@@ -1,0 +1,12 @@
+Najlepszy osobnik (fitness = 1):
+(2, 6) (3, 3) (7, 5) (4, 1) (5, 8) (1, 2) (6, 1) (8, 7) 
+
+Reprezentacja szachownicy:
+. Q . . . . . . 
+. . . . . Q . . 
+. . Q . . . . . 
+Q . . . . . . . 
+. . . . . . . Q 
+Q . . . . . . . 
+. . . . Q . . . 
+. . . . . . Q . 
