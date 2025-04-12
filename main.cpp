@@ -3,228 +3,154 @@
 #include <cstdlib>
 #include <ctime>
 #include <cmath>
-#include <climits>
 #include <fstream>
-#include <sstream>
+#include <numeric>
+#include <string>
+#include <algorithm>
 
 using namespace std;
 
 int calculate_attacks(const vector<pair<int, int>> &individual) {
-    int attacks = 0;
-    int n = individual.size();
-    for (int i = 0; i < n; i++) {
-        for (int j = i + 1; j < n; j++) {
+    int attacks = 0, n = individual.size();
+    for (int i = 0; i < n; i++)
+        for (int j = i + 1; j < n; j++)
             if (individual[i].first == individual[j].first ||
                 individual[i].second == individual[j].second ||
-                abs(individual[i].first - individual[j].first) == abs(individual[i].second - individual[j].second)) {
+                abs(individual[i].first - individual[j].first) == abs(individual[i].second - individual[j].second))
                 attacks++;
-            }
-        }
-    }
     return attacks;
 }
 
-vector<int> evaluate_population(const vector<vector<pair<int, int>>> &population) {
+vector<vector<pair<int, int>>> initialize_population(int popSize, int n) {
+    vector<vector<pair<int, int>>> population(popSize, vector<pair<int, int>>(n));
+    for (auto &individual : population)
+        for (auto &q : individual)
+            q = {1 + rand() % n, 1 + rand() % n};
+    return population;
+}
+
+vector<int> evaluate(const vector<vector<pair<int, int>>> &P) {
     vector<int> fitness;
-    for (const auto &individual : population) {
+    for (auto &individual : P)
         fitness.push_back(calculate_attacks(individual));
-    }
     return fitness;
 }
 
-vector<vector<pair<int, int>>> selection(const vector<vector<pair<int, int>>> &population,
-                                         const vector<int> &fitness, int tournament_pool, int pop_size) {
-    vector<vector<pair<int, int>>> new_population;
-    for (int i = 0; i < pop_size; i++) {
-        int best_index = -1;
-        int best_fit = INT_MAX;
-        for (int j = 0; j < tournament_pool; j++) {
-            int idx = rand() % pop_size;
-            if (fitness[idx] < best_fit) {
-                best_fit = fitness[idx];
-                best_index = idx;
-            }
+vector<vector<pair<int, int>>> selection(const vector<vector<pair<int, int>>> &P, const vector<int> &fitness, int tournamentSize) {
+    vector<vector<pair<int, int>>> Pn;
+    int n = P.size();
+    for (int i = 0; i < n; i++) {
+        int best = rand() % n;
+        for (int j = 1; j < tournamentSize; j++) {
+            int idx = rand() % n;
+            if (fitness[idx] < fitness[best]) best = idx;
         }
-        new_population.push_back(population[best_index]);
+        Pn.push_back(P[best]);
     }
-    return new_population;
+    return Pn;
 }
 
-void crossover(vector<vector<pair<int, int>>> &population, double pc) {
-    int pop_size = population.size();
-    int n = population[0].size();
-    for (int i = 0; i < pop_size - 1; i += 2) {
-        double r = (double)rand() / RAND_MAX;
-        if (r <= pc) {
-            int k = 1 + rand() % (n - 1);
-            vector<pair<int, int>> child1, child2;
-            for (int j = 0; j < k; j++) {
-                child1.push_back(population[i][j]);
-                child2.push_back(population[i + 1][j]);
-            }
-            for (int j = k; j < n; j++) {
-                child1.push_back(population[i + 1][j]);
-                child2.push_back(population[i][j]);
-            }
-            population[i] = child1;
-            population[i + 1] = child2;
+void crossover(vector<vector<pair<int, int>>> &Pn, double pc, int n) {
+    for (int i = 0; i < Pn.size() - 1; i += 2) {
+        if ((double)rand() / RAND_MAX > pc) continue;
+        int point = 1 + rand() % (n - 1);
+        for (int j = point; j < n; j++) {
+            swap(Pn[i][j], Pn[i + 1][j]);
         }
     }
 }
 
-void mutation(vector<vector<pair<int, int>>> &population, double pm, int n) {
-    int pop_size = population.size();
-    for (int i = 0; i < pop_size; i++) {
-        double r = (double)rand() / RAND_MAX;
-        if (r <= pm) {
-            int gene_index = rand() % n;
-            int coord = rand() % 2;
-            int new_val = 1 + rand() % n;
-            if (coord == 0)
-                population[i][gene_index].first = new_val;
+void mutation(vector<vector<pair<int, int>>> &Pn, double pm, int n) {
+    for (auto &individual : Pn) {
+        if ((double)rand() / RAND_MAX <= pm) {
+            int gene = rand() % n;
+            if (rand() % 2)
+                individual[gene].first = 1 + rand() % n;
             else
-                population[i][gene_index].second = new_val;
+                individual[gene].second = 1 + rand() % n;
         }
     }
 }
 
-string board_to_string(const vector<pair<int, int>> &queens, int n) {
-    vector<vector<char>> board(n, vector<char>(n, '.'));
-    for (const auto &q : queens) {
-        board[q.first - 1][q.second - 1] = 'Q';
-    }
-    stringstream ss;
-    for (const auto &row : board) {
-        for (char c : row) ss << c << " ";
-        ss << "\n";
-    }
-    return ss.str();
-}
-
-void search(int n, int pop_size, int tournament_pool, int genmax, double pc, double pm, const string& tag) {
-    srand(time(0));
-
-    vector<vector<pair<int, int>>> population;
-    for (int i = 0; i < pop_size; i++) {
-        vector<pair<int, int>> individual;
-        for (int j = 0; j < n; j++) {
-            int x = 1 + rand() % n;
-            int y = 1 + rand() % n;
-            individual.push_back(make_pair(x, y));
-        }
-        population.push_back(individual);
-    }
-
-    vector<int> fitness = evaluate_population(population);
-    int best_index = 0;
-    int best_fitness = fitness[0];
-    for (int i = 1; i < pop_size; i++) {
-        if (fitness[i] < best_fitness) {
-            best_fitness = fitness[i];
-            best_index = i;
-        }
-    }
-
-    vector<int> bestHistory;
-    vector<double> avgHistory;
-    bestHistory.push_back(best_fitness);
-
-    double avg = 0.0;
-    for (int f : fitness) avg += f;
-    avg /= pop_size;
-    avgHistory.push_back(avg);
-
-    int generation = 0;
-
-    while (generation < genmax && best_fitness > 0) {
-        auto new_population = selection(population, fitness, tournament_pool, pop_size);
-        crossover(new_population, pc);
-        mutation(new_population, pm, n);
-        fitness = evaluate_population(new_population);
-
-        for (int i = 0; i < pop_size; i++) {
-            if (fitness[i] < best_fitness) {
-                best_fitness = fitness[i];
-                best_index = i;
-            }
-        }
-
-        avg = 0.0;
-        for (int f : fitness) avg += f;
-        avg /= pop_size;
-
-        generation++;
-        bestHistory.push_back(best_fitness);
-        avgHistory.push_back(avg);
-
-        population = new_population;
-    }
-
-    const auto &bestIndividual = population[best_index];
-
-    ofstream result("results_" + tag + ".txt");
-    result << "Najlepszy osobnik (fitness = " << best_fitness << "):\n";
-    for (const auto &q : bestIndividual)
-        result << "(" << q.first << ", " << q.second << ") ";
-    result << "\n\nReprezentacja szachownicy:\n";
-    result << board_to_string(bestIndividual, n);
-    result.close();
-
-    // Also print to console
-    cout << "\nWyniki dla konfiguracji: " << tag << endl;
-    cout << "Najlepszy osobnik (fitness = " << best_fitness << "):" << endl;
-    for (const auto &q : bestIndividual)
-        cout << "(" << q.first << ", " << q.second << ") ";
-    cout << "\n\nReprezentacja szachownicy:\n";
-    cout << board_to_string(bestIndividual, n) << endl;
-
-    string data_file = "fitness_data_" + tag + ".txt";
-    ofstream file(data_file);
-    for (int i = 0; i < bestHistory.size(); i++) {
-        file << i << " " << bestHistory[i] << " " << avgHistory[i] << "\n";
-    }
-    file.close();
-
-    string plot_file = "plot_" + tag + ".gp";
-    string img_file = "plot_" + tag + ".png";
-
-    ofstream gp(plot_file);
-    gp << "set terminal png size 1000,600\n";
-    gp << "set output '" << img_file << "'\n";
-    gp << "set title 'Ewolucja fitness - " << tag << "'\n";
-    gp << "set xlabel 'Generacja'\n";
+void generate_plot(const string &dataFile, const string &tag) {
+    string gpfile = "plot_" + tag + ".gp";
+    string img = "plot_" + tag + ".png";
+    ofstream gp(gpfile);
+    gp << "set terminal pngcairo size 1000,600 enhanced font 'Arial,10'\n";
+    gp << "set output '" << img << "'\n";
+    gp << "set title 'Fitness Evolution - " << tag << "'\n";
+    gp << "set xlabel 'Generation'\n";
     gp << "set ylabel 'Fitness'\n";
-    gp << "set logscale y\n";
-    gp << "plot '" << data_file << "' using 1:2 with lines title 'Najlepszy', '"
-       << data_file << "' using 1:3 with lines title 'Sredni'\n";
+    gp << "set grid\n";
+    gp << "plot '" << dataFile << "' using 1:2 with lines title 'Best', \\\n";
+    gp << "     '" << dataFile << "' using 1:3 with lines title 'Average'\n";
     gp.close();
+    system(("gnuplot " + gpfile).c_str());
+}
 
-    system(("gnuplot " + plot_file).c_str());
+void evolutionary_algorithm(int n, int popSize, int tournamentSize, int genmax, double pc, double pm, const string &tag) {
+    srand(time(0));
+    auto P = initialize_population(popSize, n);
+    auto fitness = evaluate(P);
+
+    int bestFitness = *min_element(fitness.begin(), fitness.end());
+    int bestIndex = min_element(fitness.begin(), fitness.end()) - fitness.begin();
+    vector<pair<int, int>> bestIndividual = P[bestIndex];
+
+    vector<double> bestHistory = {(double)bestFitness};
+    vector<double> avgHistory = {accumulate(fitness.begin(), fitness.end(), 0.0) / popSize};
+
+    for (int gen = 1; gen <= genmax && bestFitness > 0; gen++) {
+        auto Pn = selection(P, fitness, tournamentSize);
+        Pn[0] = bestIndividual; // Elitism
+        crossover(Pn, pc, n);
+        mutation(Pn, pm, n);
+        fitness = evaluate(Pn);
+
+        int generationBest = *min_element(fitness.begin(), fitness.end());
+        if (generationBest < bestFitness) {
+            bestFitness = generationBest;
+            bestIndex = min_element(fitness.begin(), fitness.end()) - fitness.begin();
+            bestIndividual = Pn[bestIndex];
+        }
+
+        bestHistory.push_back(bestFitness);
+        avgHistory.push_back(accumulate(fitness.begin(), fitness.end(), 0.0) / popSize);
+        P = Pn;
+    }
+
+    cout << "\n=== Wyniki: " << tag << " ===\n";
+    cout << "Najlepszy fitness: " << bestFitness << "\nPozycje hetmanów:\n";
+    for (auto &q : bestIndividual) cout << "(" << q.first << "," << q.second << ") ";
+    cout << "\n";
+
+    string dataFile = "fitness_" + tag + ".txt";
+    ofstream out(dataFile);
+    for (int i = 0; i < bestHistory.size(); i++)
+        out << i << " " << bestHistory[i] << " " << avgHistory[i] << "\n";
+    out.close();
+
+    generate_plot(dataFile, tag);
 }
 
 int main() {
-    /*
-     Wnioski z eksperymentów
-    Rozmiar turnieju wpływa na tempo ewolucji. Zbyt mały powoduje zbyt dużą losowość,
-     a zbyt duży powoduje utrate różnorodności. Najlepsze wyniki przy wartości 5.
+    int n = 8;
+    int genmax = 1000;
+    double pc = 0.8;
+    double pm = 0.3;
 
-    Liczność populacji ma znaczenie dla jakości rozwiązań. Mała populacja często prowadzi do
-     utknięcia w lokalnym optimum. Populacja 30 zapewnia dobry kompromis między jakością a czasem.
+    vector<int> tournamentSizes = {2, 5, 10};
+    vector<int> popSizes = {10, 30, 50};
+    vector<double> mutationRates = {0.1, 0.3, 0.6};
 
-    Prawdopodobieństwo mutacji (pm) powinno być umiarkowane. Niskie wartości spowalniają,
-     a zbyt wysokie wprowadzają chaos. Najlepsze efekty dawało pm = 0.3.
+    for (int t : tournamentSizes)
+        evolutionary_algorithm(n, 30, t, genmax, pc, pm, "ts" + to_string(t));
 
-    Prawdopodobieństwo krzyżowania (pc) powinno być wysokie, ale nie maksymalne.
-     pc = 0.8 umożliwia skuteczną wymianę informacji między osobnikami bez rozwalania populacji.
-     */
-    search(8, 30, 5, 2000, 0.8, 0.3, "default");
-    search(8, 30, 2, 2000, 0.8, 0.3, "tournament_2");
-    search(8, 30, 10, 2000, 0.8, 0.3, "tournament_10");
-    search(8, 10, 5, 2000, 0.8, 0.3, "pop_10");
-    search(8, 50, 5, 2000, 0.8, 0.3, "pop_50");
-    search(8, 30, 5, 2000, 0.8, 0.1, "pm_0.1");
-    search(8, 30, 5, 2000, 0.8, 0.6, "pm_0.6");
-    search(8, 30, 5, 2000, 0.5, 0.3, "pc_0.5");
-    search(8, 30, 5, 2000, 0.95, 0.3, "pc_0.95");
+    for (int p : popSizes)
+        evolutionary_algorithm(n, p, 5, genmax, pc, pm, "pop" + to_string(p));
+
+    for (double m : mutationRates)
+        evolutionary_algorithm(n, 30, 5, genmax, pc, m, "pm" + to_string(int(m * 100)));
+
     return 0;
 }

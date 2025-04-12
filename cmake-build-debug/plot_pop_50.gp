@@ -1,7 +1,0 @@
-set terminal png size 1000,600
-set output 'plot_pop_50.png'
-set title 'Ewolucja fitness - pop_50'
-set xlabel 'Generacja'
-set ylabel 'Fitness'
-set logscale y
-plot 'fitness_data_pop_50.txt' using 1:2 with lines title 'Najlepszy', 'fitness_data_pop_50.txt' using 1:3 with lines title 'Sredni'
