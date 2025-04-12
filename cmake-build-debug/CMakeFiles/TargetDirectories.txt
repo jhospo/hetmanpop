@@ -1,3 +1,0 @@
-E:/cprojects/hetmanpop/cmake-build-debug/CMakeFiles/hetmanpop.dir
-E:/cprojects/hetmanpop/cmake-build-debug/CMakeFiles/edit_cache.dir
-E:/cprojects/hetmanpop/cmake-build-debug/CMakeFiles/rebuild_cache.dir
