@@ -23,16 +23,16 @@ int calculate_attacks(const vector<pair<int, int>> &state) {
 
 vector<vector<pair<int, int>>> initialize_population(int popSize, int n) {
     vector<vector<pair<int, int>>> population(popSize, vector<pair<int, int>>(n));
-    for (auto &individual : population)
-        for (auto &q : individual)
+    for (auto &state : population)
+        for (auto &q : state)
             q = {1 + rand() % n, 1 + rand() % n};
     return population;
 }
 
 vector<int> evaluate(const vector<vector<pair<int, int>>> &P) {
     vector<int> fitness;
-    for (auto &individual : P)
-        fitness.push_back(calculate_attacks(individual));
+    for (auto &state : P)
+        fitness.push_back(calculate_attacks(state));
     return fitness;
 }
 
@@ -61,13 +61,13 @@ void crossover(vector<vector<pair<int, int>>> &Pn, double pc, int n) {
 }
 
 void mutation(vector<vector<pair<int, int>>> &Pn, double pm, int n) {
-    for (auto &individual : Pn) {
+    for (auto &state : Pn) {
         if ((double)rand() / RAND_MAX <= pm) {
             int gene = rand() % n;
             if (rand() % 2)
-                individual[gene].first = 1 + rand() % n;
+                state[gene].first = 1 + rand() % n;
             else
-                individual[gene].second = 1 + rand() % n;
+                state[gene].second = 1 + rand() % n;
         }
     }
 }
@@ -95,14 +95,14 @@ void evolutionary_algorithm(int n, int popSize, int tournamentSize, int genmax, 
 
     int bestFitness = *min_element(fitness.begin(), fitness.end());
     int bestIndex = min_element(fitness.begin(), fitness.end()) - fitness.begin();
-    vector<pair<int, int>> bestIndividual = P[bestIndex];
+    vector<pair<int, int>> beststate = P[bestIndex];
 
     vector<double> bestHistory = {(double)bestFitness};
     vector<double> avgHistory = {accumulate(fitness.begin(), fitness.end(), 0.0) / popSize};
 
     for (int gen = 1; gen <= genmax && bestFitness > 0; gen++) {
         auto Pn = selection(P, fitness, tournamentSize);
-        Pn[0] = bestIndividual; // Elitism
+        Pn[0] = beststate; // Elitism
         crossover(Pn, pc, n);
         mutation(Pn, pm, n);
         fitness = evaluate(Pn);
@@ -111,7 +111,7 @@ void evolutionary_algorithm(int n, int popSize, int tournamentSize, int genmax, 
         if (generationBest < bestFitness) {
             bestFitness = generationBest;
             bestIndex = min_element(fitness.begin(), fitness.end()) - fitness.begin();
-            bestIndividual = Pn[bestIndex];
+            beststate = Pn[bestIndex];
         }
 
         bestHistory.push_back(bestFitness);
@@ -121,7 +121,7 @@ void evolutionary_algorithm(int n, int popSize, int tournamentSize, int genmax, 
 
     cout << "\n=== Wyniki: " << tag << " ===\n";
     cout << "Najlepszy fitness: " << bestFitness << "\nPozycje hetmanów:\n";
-    for (auto &q : bestIndividual) cout << "(" << q.first << "," << q.second << ") ";
+    for (auto &q : beststate) cout << "(" << q.first << "," << q.second << ") ";
     cout << "\n";
 
     string dataFile = "fitness_" + tag + ".txt";
