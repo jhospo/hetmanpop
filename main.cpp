@@ -10,13 +10,13 @@
 
 using namespace std;
 
-int calculate_attacks(const vector<pair<int, int>> &individual) {
-    int attacks = 0, n = individual.size();
+int calculate_attacks(const vector<pair<int, int>> &state) {
+    int attacks = 0, n = state.size();
     for (int i = 0; i < n; i++)
         for (int j = i + 1; j < n; j++)
-            if (individual[i].first == individual[j].first ||
-                individual[i].second == individual[j].second ||
-                abs(individual[i].first - individual[j].first) == abs(individual[i].second - individual[j].second))
+            if (state[i].first == state[j].first ||
+                state[i].second == state[j].second ||
+                abs(state[i].first - state[j].first) == abs(state[i].second - state[j].second))
                 attacks++;
     return attacks;
 }
